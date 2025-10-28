@@ -1,0 +1,92 @@
+---
+alwaysApply: true
+---
+## Beads Task & Work Management
+
+We use **beads (bd)** for all task and work management instead of markdown TODOs. Beads provides dependency-aware task management that prevents AI agents from getting lost in complex workflows, covering everything from development tasks to research, planning, and maintenance work.
+
+### For AI Agents: Beads Workflow
+
+**Available Commands:**
+
+- `bd ready --json` - Find unblocked work to execute
+- `bd create "title" -t bug|feature|task|research|planning|review|refactor|docs|chore -p 0-4 -d "description" --json` - Create new work items
+- `bd update <id> --status in_progress --json` - Claim work
+- `bd dep add <new-id> <parent-id> --type discovered-from` - Link discovered work
+- `bd close <id> --reason "completed" --json` - Complete work
+- `bd dep tree <id>` - Visualize dependencies
+
+**Agent Workflow:**
+
+1. Check `bd ready --json` for available work
+2. Claim work with `bd update <id> --status in_progress --json`
+3. If you discover new work while implementing, create tasks with `bd create` and link with `discovered-from`
+4. Complete work with `bd close <id> --reason "details"`
+
+**Key Concept:** `bd ready` only shows work with no blocking dependencies. This prevents agents from working on tasks that can't be completed yet.
+
+### Integration Notes
+
+- Use `--json` flags for programmatic access
+- Always link discovered work back to parent tasks
+- Export before committing: `bd export -o .beads/work.jsonl`
+- Import after pulling: `bd import -i .beads/work.jsonl`
+
+### Work Types
+
+**Development & Engineering:**
+- **bug** - Something broken that needs fixing
+- **feature** - New functionality or capability
+- **task** - General development work (implementation, testing, deployment)
+- **refactor** - Code restructuring and improvements
+- **review** - Code reviews, design reviews, or documentation reviews
+
+**Planning & Research:**
+- **research** - Investigation, analysis, or exploration work
+- **planning** - Project planning, architecture design, or requirement gathering
+- **epic** - Large initiatives with multiple subtasks
+
+**Documentation & Maintenance:**
+- **docs** - Documentation writing, updates, or technical writing
+- **chore** - Maintenance work, cleanup, or administrative tasks
+
+**Priorities (0=highest, 4=lowest):**
+- 0 - **Critical** (security issues, data loss, production blockers)
+- 1 - **High** (major features, important bugs, urgent requests)
+- 2 - **Medium** (nice-to-have features, general improvements)
+- 3 - **Low** (polish, optimization, minor enhancements)
+- 4 - **Backlog** (future ideas, nice-to-have items)
+
+**Dependency Types:**
+- **blocks** - Hard dependency (prevents work from starting)
+- **related** - Soft relationship (work is connected but not blocking)
+- **parent-child** - Hierarchical relationship (epic/subtask, project/task)
+- **discovered-from** - Work found while implementing other tasks
+- **requires** - Work needs specific resources, knowledge, or prerequisites
+
+### Work Categories & Examples
+
+**Research Tasks:**
+- "Investigate performance bottleneck in API calls"
+- "Analyze user behavior patterns for feature prioritization"
+- "Research best practices for error handling"
+
+**Planning Tasks:**
+- "Design database schema for new feature"
+- "Create implementation plan for user authentication"
+- "Define API endpoints for payment integration"
+
+**Development Tasks:**
+- "Implement user profile editing functionality"
+- "Add unit tests for payment processing"
+- "Refactor authentication middleware"
+
+**Review Tasks:**
+- "Review pull request for security compliance"
+- "Conduct design review for new UI components"
+- "Audit code for performance optimizations"
+
+**Documentation Tasks:**
+- "Update API documentation for new endpoints"
+- "Write user guide for admin features"
+- "Create deployment instructions for production"

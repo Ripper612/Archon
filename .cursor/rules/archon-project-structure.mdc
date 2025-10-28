@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+description: Archon project structure and navigation guide
+---
+
+# Archon Project Structure Guide
+
+## Core Architecture
+Archon is a knowledge management and AI agent platform with a microservices architecture:
+
+- **Frontend**: [archon-ui-main/](mdc:ARCHON/archon-ui-main/) - React/TypeScript UI
+- **Backend**: [python/](mdc:ARCHON/python/) - FastAPI server with MCP tools
+- **Documentation**: [docs/](mdc:ARCHON/docs/) - Docusaurus documentation
+- **Docker**: [docker-compose.yml](mdc:ARCHON/docker-compose.yml) - Service orchestration
+
+## Key Entry Points
+- **Main Server**: [python/src/server/main.py](mdc:ARCHON/python/src/server/main.py)
+- **MCP Server**: [python/src/mcp_server/](mdc:ARCHON/python/src/mcp_server/)
+- **Frontend App**: [archon-ui-main/src/App.tsx](mdc:ARCHON/archon-ui-main/src/App.tsx)
+- **Configuration**: [python/.env.example](mdc:ARCHON/python/.env.example)
+
+## Development Commands
+```bash
+# Backend development
+cd ARCHON/python && uv run python -m src.server.main
+
+# Frontend development  
+cd ARCHON/archon-ui-main && npm run dev
+
+# Full stack development
+cd ARCHON && make dev
+```
+
+## Important Files
+- **Environment**: [.env](mdc:ARCHON/.env) - Supabase and API keys
+- **Dependencies**: [python/pyproject.toml](mdc:ARCHON/python/pyproject.toml) - Python dependencies
+- **Frontend Config**: [archon-ui-main/package.json](mdc:ARCHON/archon-ui-main/package.json)
+- **Architecture**: [PRPs/ai_docs/ARCHITECTURE.md](mdc:ARCHON/PRPs/ai_docs/ARCHITECTURE.md)

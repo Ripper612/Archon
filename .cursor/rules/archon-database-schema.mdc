@@ -1,0 +1,47 @@
+---
+description: Archon database schema and Supabase integration
+---
+
+# Archon Database Schema Guide
+
+## Core Tables (11 total)
+
+### Knowledge Management
+- **sources** - Crawled websites and uploaded documents
+- **documents** - Processed document chunks with embeddings
+- **code_examples** - Extracted code snippets with metadata
+
+### Project Management (Optional)
+- **projects** - Project metadata with features array
+- **tasks** - Task tracking (status: todo/doing/review/done)
+- **documents** - Project documents (spec/design/note/prp/api/guide)
+
+### System Tables
+- **archon_migrations** - Database migration tracking
+- **page_metadata** - Crawled page information
+- **provider_placeholders** - LLM provider configurations
+
+## Key Relationships
+- Projects → Tasks (one-to-many)
+- Projects → Documents (one-to-many)
+- Sources → Documents (one-to-many)
+- Tasks → Assignees (User/Archon/AI Agent)
+
+## Database Operations
+```sql
+-- Check migration status
+SELECT version, migration_name, applied_at FROM archon_migrations;
+
+-- List all tables
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+```
+
+## Environment Configuration
+- **SUPABASE_URL**: API endpoint (not dashboard URL)
+- **SUPABASE_SERVICE_KEY**: Service role key (legacy format)
+- **Database**: PostgreSQL with vector extensions
+
+## Migration Management
+- Migrations in [migration/0.1.0/](mdc:ARCHON/migration/0.1.0/)
+- Check status with `curl http://localhost:8181/api/settings/database/metrics`
+- Manual SQL scripts available for Supabase Dashboard

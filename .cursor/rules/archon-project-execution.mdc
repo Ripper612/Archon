@@ -1,0 +1,72 @@
+---
+globs: *.py,*.ts,*.tsx,*.js,*.jsx
+description: Guidelines for using Archon to run other projects and repositories
+---
+
+# Using Archon for Project Execution
+
+## Setting Up New Projects with Archon
+
+### 1. Project Initialization
+```bash
+# Create new project in Archon
+manage_project("create", title="My New Project", description="Project goals")
+
+# Create initial tasks
+manage_task("create", project_id="proj-123", title="Setup environment", task_order=10)
+manage_task("create", project_id="proj-123", title="Implement core features", task_order=9)
+```
+
+### 2. Knowledge Management
+- **Research Phase**: Use `rag_search_knowledge_base` to find relevant documentation
+- **Code Examples**: Use `rag_search_code_examples` to find implementation patterns
+- **Documentation**: Store project docs with `manage_document`
+
+### 3. Development Workflow
+```bash
+# Check available work
+find_tasks(filter_by="status", filter_value="todo")
+
+# Start working on task
+manage_task("update", task_id="...", status="doing")
+
+# Research before coding
+rag_search_knowledge_base(query="authentication patterns")
+
+# Complete task
+manage_task("update", task_id="...", status="review")
+```
+
+## Archon as a Development Platform
+
+### Knowledge Base Integration
+- **Import Repositories**: Use Archon's crawling features to import GitHub repos
+- **Document Processing**: Upload and process project documentation
+- **Code Extraction**: Automatically extract and index code examples
+
+### Project Management Features
+- **Task Tracking**: Break down work into manageable tasks
+- **Progress Monitoring**: Track completion status and assignees
+- **Documentation**: Centralize project documentation and specifications
+
+### AI-Powered Development
+- **RAG-Enhanced Coding**: Use knowledge base to inform implementation decisions
+- **Code Examples**: Find relevant patterns from the knowledge base
+- **Documentation**: Generate and maintain project documentation
+
+## Best Practices for Junior Developers
+
+### Before Starting Any Project
+1. **Research**: Use Archon's knowledge base to understand requirements
+2. **Plan**: Create tasks and break down work into manageable pieces
+3. **Document**: Store project specifications and decisions
+
+### During Development
+1. **Task Management**: Always update task status when working
+2. **Knowledge Search**: Use RAG tools to find solutions and patterns
+3. **Documentation**: Keep project docs updated with `manage_document`
+
+### After Completion
+1. **Review**: Mark tasks as complete and review work
+2. **Documentation**: Update project documentation with lessons learned
+3. **Knowledge Base**: Add useful code examples and patterns

@@ -1,0 +1,79 @@
+---
+description: Python development standards, tooling, and project structure conventions
+alwaysApply: false
+---
+# Python Development Standards
+
+## Environment & Tooling
+
+### Python Environment
+- Use Python 3.11+ with Poetry or venv. Avoid global installs.
+- Validate clean install via `poetry install` and `poetry shell`.
+- Required tools: `fd`, `rg`, `ast-grep`, `fzf`, `jq`, `yq`.
+
+### Development Environment
+- **Environments:** Windows 10/11, Powershell7, Cursor, Jupyter, Machine Learning
+
+## Project Structure
+- Reuse existing modules and patterns. Avoid duplication.
+- Maintain standard dirs: `src/services/`, `configs/`, `tests/`, `scripts/`, etc.
+- Dir: `lowercase-dash`
+- Files: `snake_case.py`
+- Use descriptive, intention-revealing names.
+- Follow existing conventions over inventing new ones.
+
+## Code Style & Quality
+
+### Formatting & Linting
+- Use Black (88-char limit) and isort.
+- Follow PEP 8 and PEP 484; prefer full type hints.
+- Naming:
+  - `snake_case`: functions, variables
+  - `PascalCase`: classes
+  - `UPPER_CASE`: constants
+  - Booleans: `is_`, `has_`, `should_` prefixes
+
+### Error Handling
+- Catch specific exceptions, not bare `except`.
+- Use guard clauses and early returns.
+- Fail fast on misconfigurations.
+- Include context in errors; never log secrets.
+- Use structured logs for downstream parsing.
+
+### Logging
+- Use `logger.info/debug` with timestamps and module context.
+- Log configuration, file paths, data shapes, results.
+- Avoid logging PII, secrets, or large payloads.
+
+## Configuration Management
+- All parameters should be externalized to YAML/JSON/ENV files.
+- Validate configs at startup.
+- Provide defaults and usage examples.
+- Never hardcode sensitive or environment-specific values.
+
+## Testing Standards
+- Use `pytest`; mirror `src/` structure in `tests/`.
+- Target ≥80% coverage.
+- Mark missing tests with `# cursor: TODO add test`.
+
+## CLI & Tooling Interaction
+- Use `grep`, `fd`, `rg`, `ast-grep`, `jq`, and `yq` as primary tools.
+- Validate outputs, configs, and paths before making changes.
+- Use `run_terminal_cmd`, `read_file`, `list_dir` as needed in MCP workflows.
+
+## File Validation Rules
+Always confirm before modifying:
+- `cluster_assignments.csv`
+- `transition_matrix.csv`
+- `regime_metadata.json`
+Ensure outputs land in `artifacts/reports/...` unless otherwise specified.
+
+## Modeling Guardrails
+Only generate modeling logic if:
+- You are confident in the task.
+- A config exists in `configs/`
+- Output path is valid (e.g., `artifacts/models/`)
+- A CLI entry like `launch.py` is defined
+Prefer YAML suggestions over direct code unless explicitly asked.
+
+

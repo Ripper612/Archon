@@ -1,0 +1,57 @@
+---
+description: Common Archon issues and troubleshooting steps
+---
+
+# Archon Troubleshooting Guide
+
+## Common Issues & Solutions
+
+### Docker Container Issues
+```bash
+# Check container status
+docker compose ps
+
+# View logs
+docker compose logs archon-server
+docker compose logs archon-mcp
+
+# Restart services
+docker compose restart archon-server archon-mcp
+```
+
+### API Key Problems
+- **OpenAI Invalid Key**: Check quota, billing, and key format
+- **Environment Override**: Remove conflicting env vars
+- **Test Connectivity**: Use `/api/providers/openai/status` endpoint
+
+### Database Connection Issues
+- **Wrong Supabase URL**: Use API URL, not dashboard URL
+- **Migration Status**: Check with `/api/settings/database/metrics`
+- **Schema Validation**: Verify all 11 migrations applied
+
+### Frontend Issues
+- **Port Conflicts**: Ensure 3737 is available
+- **API Proxy**: Check Vite proxy configuration
+- **Build Errors**: Run `npm run lint` and fix TypeScript issues
+
+## Health Check Commands
+```bash
+# Backend health
+curl http://localhost:8181/health
+
+# MCP server health  
+curl http://localhost:8051/health
+
+# Frontend
+curl http://localhost:3737
+
+# Database metrics
+curl http://localhost:8181/api/settings/database/metrics
+```
+
+## Debug Workflow
+1. Check container status and logs
+2. Verify environment variables
+3. Test API endpoints
+4. Check database connectivity
+5. Review error messages in browser console

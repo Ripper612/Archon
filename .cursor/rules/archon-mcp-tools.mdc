@@ -1,0 +1,52 @@
+---
+description: Archon MCP tools and knowledge management
+---
+
+# Archon MCP Tools Guide
+
+## Available MCP Tools (14 total)
+
+### Knowledge Base & RAG
+- `rag_get_available_sources` - List knowledge sources
+- `rag_search_knowledge_base` - Search with RAG (2-5 keywords)
+- `rag_search_code_examples` - Find code snippets
+- `rag_list_pages_for_source` - Browse source pages
+- `rag_read_full_page` - Get complete page content
+
+### Project Management
+- `find_projects` - List/search projects
+- `manage_project` - Create/update/delete projects
+- `get_project_features` - Get project capabilities
+
+### Task Management
+- `find_tasks` - Find tasks by status/project/assignee
+- `manage_task` - Create/update/delete tasks
+- Task status flow: `todo` → `doing` → `review` → `done`
+
+### Document Management
+- `find_documents` - Search project documents
+- `manage_document` - Create/update/delete documents
+
+### Version Control
+- `find_versions` - List version history
+- `manage_version` - Create snapshots/restore versions
+
+## Usage Patterns
+```bash
+# Research before coding
+rag_search_knowledge_base(query="authentication JWT")
+
+# Task-driven development
+find_tasks(filter_by="status", filter_value="todo")
+manage_task("update", task_id="...", status="doing")
+
+# Project management
+find_projects(query="auth")
+manage_project("create", title="New Feature")
+```
+
+## Best Practices
+- Keep search queries short (2-5 keywords)
+- Always update task status when working
+- Use projects to organize related work
+- Research with RAG before implementing features

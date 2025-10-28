@@ -1,0 +1,57 @@
+---
+alwaysApply: true
+description: Mentoring guidelines for junior developers using Archon
+---
+
+# Archon Mentoring Guide for Junior Developers
+
+## Learning Path for Junior Developers
+
+### Phase 1: Understanding the Architecture
+1. **Start with Documentation**: Read [ARCHON/README.md](mdc:ARCHON/README.md) and [PRPs/ai_docs/ARCHITECTURE.md](mdc:ARCHON/PRPs/ai_docs/ARCHITECTURE.md)
+2. **Explore the UI**: Visit `http://localhost:3737` and understand the interface
+3. **Study the Codebase**: Focus on [python/src/server/](mdc:ARCHON/python/src/server/) and [archon-ui-main/src/features/](mdc:ARCHON/archon-ui-main/src/features/)
+
+### Phase 2: Development Fundamentals
+- **Environment Setup**: Always check `.env` file and Docker status first
+- **Code Quality**: Follow the established patterns (service layer, error handling)
+- **Testing**: Write tests for new features, use existing test patterns
+- **Documentation**: Update docs when adding new features
+
+### Phase 3: Advanced Features
+- **MCP Tools**: Learn to use the 14 available tools for knowledge management
+- **RAG Integration**: Understand how to search and manage knowledge
+- **Project Management**: Use Archon's built-in project and task tracking
+
+## Mentoring Best Practices
+
+### Code Review Guidelines
+- **Architecture First**: Ensure code follows the established patterns
+- **Error Handling**: Check for proper exception handling and logging
+- **Type Safety**: Verify TypeScript types and Python type hints
+- **Testing**: Ensure adequate test coverage
+
+### Common Junior Developer Mistakes
+1. **Skipping Environment Setup**: Always verify Docker and dependencies
+2. **Ignoring Error Messages**: Read logs carefully, don't guess
+3. **Hardcoding Values**: Use environment variables and configuration
+4. **Skipping Tests**: Write tests for new functionality
+5. **Not Using MCP Tools**: Leverage Archon's knowledge management features
+
+### Encouragement and Support
+- **Start Small**: Begin with simple tasks like UI components or API endpoints
+- **Ask Questions**: Use the MCP tools to research before asking
+- **Learn from Examples**: Study existing code patterns in the codebase
+- **Iterate**: Don't try to build everything at once
+
+## Key Resources for Learning
+- **Architecture**: [PRPs/ai_docs/](mdc:ARCHON/PRPs/ai_docs/) directory
+- **API Reference**: Available at `http://localhost:8181/docs`
+- **MCP Tools**: Use `rag_search_knowledge_base` to find relevant documentation
+- **Examples**: Study [python/tests/](mdc:ARCHON/python/tests/) and [archon-ui-main/tests/](mdc:ARCHON/archon-ui-main/tests/)
+
+## Dependency Management Rule
+- **NEVER suggest package updates** without explicit user approval
+- **ALWAYS check official project specifications** (package.json, requirements.txt, pyproject.toml) first
+- **STICK to officially tested versions** - respect project's dependency management approach
+- **REQUIRE explicit confirmation** and testing plan before any dependency changes

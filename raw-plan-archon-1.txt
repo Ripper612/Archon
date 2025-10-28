@@ -1,0 +1,200 @@
+# Archon Health Check and Update Plan
+
+## Overview
+After syncing with your GitHub fork, verify that Docker containers and database are up to date with the latest Archon v0.1.0 code. This plan prioritizes safety with thorough checks before any changes.
+
+## Phase 1: Environment Configuration Check
+
+### Step 1.1 - Verify .env File Exists
+**Location**: `ARCHON/.env`
+**Status**: Not found during initial search
+**Action**: Check if file exists and validate required variables
+
+Required variables:
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-key-here
+OPENAI_API_KEY=sk-...  # Optional but needed for embeddings
+```
+
+**If missing**: Create `.env` file before proceeding with Docker operations.
+
+### Step 1.2 - Validate Supabase Credentials
+- Test connection to Supabase
+- Verify service key format (should be legacy/long format)
+- Check database accessibility
+
+## Phase 2: Docker Container Status Check
+
+### Step 2.1 - Check Current Container State
+**Commands**:
+```bash
+cd ARCHON
+docker compose ps
+```
+
+Expected containers:
+- `archon-server` (port 8181) - API and crawling service
+- `archon-mcp` (port 8051) - MCP protocol server
+- `archon-frontend` (port 3737) - React UI
+- `archon-agents` (port 8052) - Optional AI agents
+
+**Current known state**: Containers are stopped
+
+### Step 2.2 - Check Container Image Versions
+**Command**:
+```bash
+docker compose images
+```
+
+This shows when containers were built and if they need rebuilding after git sync.
+
+### Step 2.3 - Review Container Logs
+**Commands**:
+```bash
+docker compose logs archon-server --tail 20
+docker compose logs archon-mcp --tail 20
+```
+
+Look for startup errors, configuration issues, or database connection problems.
+
+## Phase 3: Database Schema Validation
+
+### Step 3.1 - Start Containers (if stopped)
+**Command**:
+```bash
+docker compose up -d
+```
+
+Wait for health checks to complete (30-60 seconds).
+
+### Step 3.2 - Query API Health Endpoint
+**Command**:
+```bash
+curl -s http://localhost:8181/health | jq .
+```
+
+**File reference**: `ARCHON/python/src/server/main.py` lines 264-336
+
+Possible responses:
+- `{"status": "healthy", "valid": true}` - Schema up to date
+- `{"status": "migration_required", "valid": false}` - Needs migrations
+- Connection error - Container or database issue
+
+### Step 3.3 - Check Database Metrics
+**Command**:
+```bash
+curl -s http://localhost:8181/api/settings/database/metrics | jq .
+```
+
+**File reference**: `ARCHON/python/src/server/api_routes/settings_api.py` lines 281-330
+
+Verifies:
+- Database connection works
+- Tables exist and are accessible
+- Returns counts for: projects, tasks, crawled_pages, settings
+
+### Step 3.4 - Query Migration Tracking Table
+**Direct Supabase SQL query**:
+```sql
+SELECT version, migration_name, applied_at 
+FROM archon_migrations 
+ORDER BY applied_at DESC
+LIMIT 20;
+```
+
+**File reference**: Migration tracking defined in `ARCHON/migration/complete_setup.sql` lines 1030-1049
+
+If table doesn't exist: Database needs complete setup from `migration/complete_setup.sql`
+
+## Phase 4: Migration Analysis
+
+### Step 4.1 - Identify Required Migrations
+**Reference**: `ARCHON/migration/0.1.0/DB_UPGRADE_INSTRUCTIONS.md`
+
+Migration files (must run in order):
+1. `001_add_source_url_display_name.sql` - Adds display_name column
+2. `002_add_hybrid_search_tsvector.sql` - Full-text search support
+3. `003_ollama_add_columns.sql` - Multi-dimension embedding columns
+4. `004_ollama_migrate_data.sql` - Migrate existing embeddings
+5. `005_ollama_create_functions.sql` - Search functions
+6. `006_ollama_create_indexes_optional.sql` - Performance indexes
+7. `007_add_priority_column_to_tasks.sql` - Task priority support
+8. `008_add_migration_tracking.sql` - Creates archon_migrations table
+9. `009_add_cascade_delete_constraints.sql` - Data integrity
+10. `010_add_provider_placeholders.sql` - Provider configuration
+11. `011_add_page_metadata_table.sql` - Page metadata tracking
+
+### Step 4.2 - Determine Missing Migrations
+Compare applied migrations (from Step 3.4) against the full list above.
+
+### Step 4.3 - Check for Fresh Installation Need
+If `archon_migrations` table doesn't exist:
+- Run `migration/complete_setup.sql` (creates all tables with latest schema)
+- This is safer than running individual migrations
+- Skip individual migration files
+
+## Phase 5: Status Report Generation
+
+### Step 5.1 - Compile Health Status
+Summarize findings from all checks:
+
+**Environment**:
+- .env file: [exists/missing]
+- Supabase URL: [configured/missing]
+- API keys: [configured/missing]
+
+**Docker Containers**:
+- Status: [running/stopped]
+- Images: [up to date/need rebuild]
+- Health checks: [passing/failing]
+
+**Database Schema**:
+- Connection: [working/failing]
+- Schema version: [current/outdated]
+- Missing migrations: [list or "none"]
+
+### Step 5.2 - Provide Recommended Actions
+Based on findings, recommend priority order:
+
+**Critical** (blocks functionality):
+- Create .env file if missing
+- Fix database connection issues
+- Run complete_setup.sql if fresh install
+
+**High Priority** (missing features):
+- Apply pending migrations
+- Rebuild Docker containers if outdated
+
+**Optional** (enhancements):
+- Configure additional API keys
+- Enable optional features
+
+## Phase 6: Update Execution (If Needed)
+
+This phase will only execute after user confirmation of findings from Phase 5.
+
+### Step 6.1 - Database Backup (if migrations needed)
+**Command**: Run `migration/backup_database.sql` in Supabase SQL Editor
+
+Creates timestamped backup tables for recovery if needed.
+
+### Step 6.2 - Apply Migrations
+**For fresh install**:
+- Run `migration/complete_setup.sql`
+
+**For incremental updates**:
+- Run each missing migration file in sequence
+- Wait for each to complete before next
+- All migrations are idempotent (safe to re-run)
+
+### Step 6.3 - Rebuild Docker Containers
+**Commands**:
+```bash
+cd ARCHON
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+Force

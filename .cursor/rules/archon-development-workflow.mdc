@@ -1,0 +1,37 @@
+---
+description: Archon development workflow and best practices
+---
+
+# Archon Development Workflow
+
+## Environment Setup
+1. **Check Prerequisites**: Ensure Docker, Node.js, and Python 3.12+ are installed
+2. **Environment Variables**: Copy [python/.env.example](mdc:ARCHON/python/.env.example) to `.env` and configure Supabase credentials
+3. **Dependencies**: Use `uv` for Python, `npm` for frontend
+4. **Docker Services**: Start with `docker compose up -d`
+
+## Development Patterns
+
+### Backend Development
+- **Service Layer**: API routes → Services → Database
+- **Error Handling**: Use custom exceptions in [python/src/server/exceptions.py](mdc:ARCHON/python/src/server/exceptions.py)
+- **MCP Tools**: Add new tools in [python/src/mcp_server/features/](mdc:ARCHON/python/src/mcp_server/features/)
+- **Testing**: Use pytest with async support
+
+### Frontend Development
+- **Architecture**: TanStack Query for data fetching, no prop drilling
+- **Components**: Use Radix UI primitives from [archon-ui-main/src/features/ui/primitives/](mdc:ARCHON/archon-ui-main/src/features/ui/primitives/)
+- **Styling**: Tron-inspired glassmorphism with Tailwind CSS
+- **File Structure**: Vertical slice architecture in `/features`
+
+## Code Quality Standards
+- **Python**: Black (88-char), isort, Ruff linting, MyPy type checking
+- **TypeScript**: Strict mode, Biome for features/, ESLint for legacy code
+- **Testing**: Vitest for frontend, pytest for backend
+- **Line Length**: 120 characters for both Python and TypeScript
+
+## Common Tasks
+- **Add API Endpoint**: Route → Service → Database
+- **Add UI Component**: Feature folder → Component → Hook → Service
+- **Add MCP Tool**: Feature tools file → Register in `__init__.py`
+- **Debug Issues**: Check logs with `docker compose logs [service]`

@@ -77,7 +77,8 @@ async def fetch_credentials_from_server():
                         "Please set it in your .env file or environment."
                     )
                 response = await client.get(
-                    f"http://archon-server:{server_port}/internal/credentials/agents", timeout=10.0
+                    f"http://archon-server:{server_port}/internal/credentials/agents",
+                    timeout=10.0,
                 )
                 response.raise_for_status()
                 credentials = response.json()
@@ -92,7 +93,9 @@ async def fetch_credentials_from_server():
                 global AGENT_CREDENTIALS
                 AGENT_CREDENTIALS = credentials
 
-                logger.info(f"Successfully fetched {len(credentials)} credentials from server")
+                logger.info(
+                    f"Successfully fetched {len(credentials)} credentials from server"
+                )
                 return credentials
 
         except (httpx.HTTPError, httpx.RequestError) as e:
@@ -103,7 +106,9 @@ async def fetch_credentials_from_server():
                 logger.info(f"Retrying in {retry_delay} seconds...")
                 await asyncio.sleep(retry_delay)
             else:
-                logger.error(f"Failed to fetch credentials after {max_retries} attempts")
+                logger.error(
+                    f"Failed to fetch credentials after {max_retries} attempts"
+                )
                 raise Exception("Could not fetch credentials from server")
 
 
@@ -169,16 +174,39 @@ async def run_agent(request: AgentRequest):
     try:
         # Get the requested agent
         if request.agent_type not in app.state.agents:
-            raise HTTPException(status_code=400, detail=f"Unknown agent type: {request.agent_type}")
+            raise HTTPException(
+                status_code=400, detail=f"Unknown agent type: {request.agent_type}"
+            )
 
         agent = app.state.agents[request.agent_type]
 
-        # Prepare dependencies for the agent
-        deps = {
-            "context": request.context or {},
-            "options": request.options or {},
-            "mcp_endpoint": os.getenv("MCP_SERVICE_URL", "http://archon-mcp:8051"),
-        }
+        # Prepare dependencies based on agent type
+        if request.agent_type == "rag":
+            from .rag_agent import RagDependencies
+
+            deps = RagDependencies(
+                source_filter=(
+                    request.context.get("source_filter") if request.context else None
+                ),
+                match_count=(
+                    request.context.get("match_count", 5) if request.context else 5
+                ),
+                project_id=(
+                    request.context.get("project_id") if request.context else None
+                ),
+            )
+        elif request.agent_type == "document":
+            from .document_agent import DocumentDependencies
+
+            deps = DocumentDependencies(
+                project_id=request.context.get("project_id") if request.context else "",
+                user_id=request.context.get("user_id") if request.context else None,
+            )
+        else:
+            # Default dependencies
+            from .base_agent import ArchonDependencies
+
+            deps = ArchonDependencies()
 
         # Run the agent
         result = await agent.run(request.prompt, deps)
@@ -232,15 +260,25 @@ async def stream_agent(agent_type: str, request: AgentRequest):
                 from .rag_agent import RagDependencies
 
                 deps = RagDependencies(
-                    source_filter=request.context.get("source_filter") if request.context else None,
-                    match_count=request.context.get("match_count", 5) if request.context else 5,
-                    project_id=request.context.get("project_id") if request.context else None,
+                    source_filter=(
+                        request.context.get("source_filter")
+                        if request.context
+                        else None
+                    ),
+                    match_count=(
+                        request.context.get("match_count", 5) if request.context else 5
+                    ),
+                    project_id=(
+                        request.context.get("project_id") if request.context else None
+                    ),
                 )
             elif agent_type == "document":
                 from .document_agent import DocumentDependencies
 
                 deps = DocumentDependencies(
-                    project_id=request.context.get("project_id") if request.context else None,
+                    project_id=(
+                        request.context.get("project_id") if request.context else None
+                    ),
                     user_id=request.context.get("user_id") if request.context else None,
                 )
             else:
@@ -260,7 +298,9 @@ async def stream_agent(agent_type: str, request: AgentRequest):
                 # Get the final structured result
                 try:
                     final_result = await stream.get_data()
-                    event_data = json.dumps({"type": "stream_complete", "content": final_result})
+                    event_data = json.dumps(
+                        {"type": "stream_complete", "content": final_result}
+                    )
                     yield f"data: {event_data}\n\n"
                 except Exception:
                     # If we can't get structured data, just send completion

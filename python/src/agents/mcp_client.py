@@ -37,11 +37,11 @@ class MCPClient:
                 # Fallback for when running in agents container
                 import os
 
-                mcp_port = os.getenv("ARCHON_MCP_PORT", "8051")
+                mcp_http_port = os.getenv("ARCHON_MCP_HTTP_PORT", "8053")
                 if os.getenv("DOCKER_CONTAINER"):
-                    self.mcp_url = f"http://archon-mcp:{mcp_port}"
+                    self.mcp_url = f"http://archon-mcp-bridge:{mcp_http_port}"
                 else:
-                    self.mcp_url = f"http://localhost:{mcp_port}"
+                    self.mcp_url = f"http://localhost:{mcp_http_port}"
 
         self.client = httpx.AsyncClient(timeout=30.0)
         logger.info(f"MCP Client initialized with URL: {self.mcp_url}")
@@ -71,7 +71,12 @@ class MCPClient:
         """
         try:
             # MCP tools are called via JSON-RPC protocol
-            request_data = {"jsonrpc": "2.0", "method": tool_name, "params": kwargs, "id": 1}
+            request_data = {
+                "jsonrpc": "2.0",
+                "method": tool_name,
+                "params": kwargs,
+                "id": 1,
+            }
 
             # Make HTTP request to MCP server
             response = await self.client.post(
@@ -85,7 +90,9 @@ class MCPClient:
 
             if "error" in result:
                 error = result["error"]
-                raise Exception(f"MCP tool error: {error.get('message', 'Unknown error')}")
+                raise Exception(
+                    f"MCP tool error: {error.get('message', 'Unknown error')}"
+                )
 
             return result.get("result", {})
 
@@ -98,7 +105,9 @@ class MCPClient:
 
     # Convenience methods for common MCP tools
 
-    async def perform_rag_query(self, query: str, source: str = None, match_count: int = 5) -> str:
+    async def perform_rag_query(
+        self, query: str, source: str = None, match_count: int = 5
+    ) -> str:
         """Perform a RAG query through MCP."""
         result = await self.call_tool(
             "perform_rag_query", query=query, source=source, match_count=match_count
@@ -115,7 +124,10 @@ class MCPClient:
     ) -> str:
         """Search code examples through MCP."""
         result = await self.call_tool(
-            "search_code_examples", query=query, source_id=source_id, match_count=match_count
+            "search_code_examples",
+            query=query,
+            source_id=source_id,
+            match_count=match_count,
         )
         return json.dumps(result) if isinstance(result, dict) else str(result)
 
@@ -133,7 +145,9 @@ class MCPClient:
 
     async def manage_task(self, action: str, project_id: str, **kwargs) -> str:
         """Manage tasks through MCP."""
-        result = await self.call_tool("manage_task", action=action, project_id=project_id, **kwargs)
+        result = await self.call_tool(
+            "manage_task", action=action, project_id=project_id, **kwargs
+        )
         return json.dumps(result) if isinstance(result, dict) else str(result)
 
 

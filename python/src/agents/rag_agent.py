@@ -34,7 +34,9 @@ class RagDependencies(ArchonDependencies):
 class RagQueryResult(BaseModel):
     """Structured output for RAG query results."""
 
-    query_type: str = Field(description="Type of query: search, explain, summarize, compare")
+    query_type: str = Field(
+        description="Type of query: search, explain, summarize, compare"
+    )
     original_query: str = Field(description="The original user query")
     refined_query: str | None = Field(
         description="Refined query used for search if different from original"
@@ -42,7 +44,9 @@ class RagQueryResult(BaseModel):
     results_found: int = Field(description="Number of relevant results found")
     sources: list[str] = Field(description="List of unique sources referenced")
     answer: str = Field(description="The synthesized answer based on retrieved content")
-    citations: list[dict[str, Any]] = Field(description="Citations with source and relevance info")
+    citations: list[dict[str, Any]] = Field(
+        description="Citations with source and relevance info"
+    )
     success: bool = Field(description="Whether the query was successful")
     message: str = Field(description="Status message or error description")
 
@@ -115,34 +119,55 @@ class RagAgent(BaseAgent[RagDependencies, str]):
         # Register dynamic system prompt for context
         @agent.system_prompt
         async def add_search_context(ctx: RunContext[RagDependencies]) -> str:
+            # Handle both dict and object cases
+            if isinstance(ctx.deps, dict):
+                source_filter = ctx.deps.get("source_filter")
+                project_id = ctx.deps.get("project_id")
+                match_count = ctx.deps.get("match_count", 5)
+            else:
+                source_filter = ctx.deps.source_filter
+                project_id = ctx.deps.project_id
+                match_count = ctx.deps.match_count
+
             source_info = (
-                f"Source Filter: {ctx.deps.source_filter}"
-                if ctx.deps.source_filter
+                f"Source Filter: {source_filter}"
+                if source_filter
                 else "No source filter"
             )
             return f"""
 **Current Search Context:**
-- Project ID: {ctx.deps.project_id or "Global search"}
+- Project ID: {project_id or "Global search"}
 - {source_info}
-- Max Results: {ctx.deps.match_count}
+- Max Results: {match_count}
 - Timestamp: {datetime.now().isoformat()}
 """
 
         # Register tools for RAG operations
         @agent.tool
         async def search_documents(
-            ctx: RunContext[RagDependencies], query: str, source_filter: str | None = None
+            ctx: RunContext[RagDependencies],
+            query: str,
+            source_filter: str | None = None,
         ) -> str:
             """Search through documents using RAG query."""
             try:
                 # Use source filter from context if not provided
                 if source_filter is None:
-                    source_filter = ctx.deps.source_filter
+                    if isinstance(ctx.deps, dict):
+                        source_filter = ctx.deps.get("source_filter")
+                    else:
+                        source_filter = ctx.deps.source_filter
+
+                # Get match count
+                if isinstance(ctx.deps, dict):
+                    match_count = ctx.deps.get("match_count", 5)
+                else:
+                    match_count = ctx.deps.match_count
 
                 # Use MCP client to perform RAG query
                 mcp_client = await get_mcp_client()
                 result_json = await mcp_client.perform_rag_query(
-                    query=query, source=source_filter, match_count=ctx.deps.match_count
+                    query=query, source=source_filter, match_count=match_count
                 )
 
                 # Parse the JSON response
@@ -199,7 +224,9 @@ class RagAgent(BaseAgent[RagDependencies, str]):
                 result = json.loads(result_json)
 
                 if not result.get("success", False):
-                    return f"Failed to get sources: {result.get('error', 'Unknown error')}"
+                    return (
+                        f"Failed to get sources: {result.get('error', 'Unknown error')}"
+                    )
 
                 sources = result.get("sources", [])
                 if not sources:
@@ -219,7 +246,9 @@ class RagAgent(BaseAgent[RagDependencies, str]):
                         f"- **{source_id}**: {title}{desc_text} (added {created[:10]})"
                     )
 
-                return f"Available sources ({len(sources)} total):\n" + "\n".join(source_list)
+                return f"Available sources ({len(sources)} total):\n" + "\n".join(
+                    source_list
+                )
 
             except Exception as e:
                 logger.error(f"Error listing sources: {e}")
@@ -227,18 +256,29 @@ class RagAgent(BaseAgent[RagDependencies, str]):
 
         @agent.tool
         async def search_code_examples(
-            ctx: RunContext[RagDependencies], query: str, source_filter: str | None = None
+            ctx: RunContext[RagDependencies],
+            query: str,
+            source_filter: str | None = None,
         ) -> str:
             """Search for code examples related to the query."""
             try:
                 # Use source filter from context if not provided
                 if source_filter is None:
-                    source_filter = ctx.deps.source_filter
+                    if isinstance(ctx.deps, dict):
+                        source_filter = ctx.deps.get("source_filter")
+                    else:
+                        source_filter = ctx.deps.source_filter
+
+                # Get match count
+                if isinstance(ctx.deps, dict):
+                    match_count = ctx.deps.get("match_count", 5)
+                else:
+                    match_count = ctx.deps.match_count
 
                 # Use MCP client to search code examples
                 mcp_client = await get_mcp_client()
                 result_json = await mcp_client.search_code_examples(
-                    query=query, source_id=source_filter, match_count=ctx.deps.match_count
+                    query=query, source_id=source_filter, match_count=match_count
                 )
 
                 # Parse the JSON response
@@ -296,17 +336,27 @@ class RagAgent(BaseAgent[RagDependencies, str]):
                     refined_parts.append("tutorial guide example")
                 elif "what" in original_query.lower():
                     refined_parts.append("definition explanation overview")
-                elif "error" in original_query.lower() or "issue" in original_query.lower():
+                elif (
+                    "error" in original_query.lower()
+                    or "issue" in original_query.lower()
+                ):
                     refined_parts.append("troubleshooting solution fix")
                 elif "api" in original_query.lower():
                     refined_parts.append("endpoint method parameters response")
 
                 # Add project-specific context if available
-                if ctx.deps.project_id:
-                    refined_parts.append(f"project:{ctx.deps.project_id}")
+                if isinstance(ctx.deps, dict):
+                    project_id = ctx.deps.get("project_id")
+                else:
+                    project_id = ctx.deps.project_id
+
+                if project_id:
+                    refined_parts.append(f"project:{project_id}")
 
                 refined_query = " ".join(refined_parts)
-                return f"Refined query: '{refined_query}' (original: '{original_query}')"
+                return (
+                    f"Refined query: '{refined_query}' (original: '{original_query}')"
+                )
 
             except Exception as e:
                 return f"Could not refine query: {str(e)}"
@@ -385,7 +435,9 @@ class RagAgent(BaseAgent[RagDependencies, str]):
                 results_found = 0
 
             # Extract source references if present
-            source_lines = [line for line in response_text.split("\n") if "Source:" in line]
+            source_lines = [
+                line for line in response_text.split("\n") if "Source:" in line
+            ]
             sources = [line.split("Source:")[-1].strip() for line in source_lines]
 
             return RagQueryResult(

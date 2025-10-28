@@ -31,6 +31,18 @@ from typing import Any
 from dotenv import load_dotenv
 
 from mcp.server.fastmcp import Context, FastMCP
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+
+# Import MCP tool functions for HTTP endpoints
+from src.mcp_server.features.rag.rag_tools import (
+    rag_search_knowledge_base,
+    rag_get_available_sources,
+    rag_search_code_examples,
+)
+from src.mcp_server.features.projects.project_tools import manage_project
+from src.mcp_server.features.tasks.task_tools import manage_task
+from src.mcp_server.features.documents.document_tools import manage_document
 
 # Add the project root to Python path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -46,9 +58,11 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("/tmp/mcp_server.log", mode="a")
-        if os.path.exists("/tmp")
-        else logging.NullHandler(),
+        (
+            logging.FileHandler("/tmp/mcp_server.log", mode="a")
+            if os.path.exists("/tmp")
+            else logging.NullHandler()
+        ),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -110,12 +124,16 @@ async def perform_health_checks(context: ArchonContext):
         service_health = await context.service_client.health_check()
 
         context.health_status["api_service"] = service_health.get("api_service", False)
-        context.health_status["agents_service"] = service_health.get("agents_service", False)
+        context.health_status["agents_service"] = service_health.get(
+            "agents_service", False
+        )
 
         # Overall status
         all_critical_ready = context.health_status["api_service"]
 
-        context.health_status["status"] = "healthy" if all_critical_ready else "degraded"
+        context.health_status["status"] = (
+            "healthy" if all_critical_ready else "degraded"
+        )
         context.health_status["last_health_check"] = datetime.now().isoformat()
 
         if not all_critical_ready:
@@ -347,38 +365,46 @@ async def health_check(ctx: Context) -> str:
 
         if context is None:
             # Server starting up
-            return json.dumps({
-                "success": True,
-                "status": "starting",
-                "message": "MCP server is initializing...",
-                "timestamp": datetime.now().isoformat(),
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "status": "starting",
+                    "message": "MCP server is initializing...",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         # Server is ready - perform health checks
         if hasattr(context, "health_status") and context.health_status:
             await perform_health_checks(context)
 
-            return json.dumps({
-                "success": True,
-                "health": context.health_status,
-                "uptime_seconds": time.time() - context.startup_time,
-                "timestamp": datetime.now().isoformat(),
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "health": context.health_status,
+                    "uptime_seconds": time.time() - context.startup_time,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
         else:
-            return json.dumps({
-                "success": True,
-                "status": "ready",
-                "message": "MCP server is running",
-                "timestamp": datetime.now().isoformat(),
-            })
+            return json.dumps(
+                {
+                    "success": True,
+                    "status": "ready",
+                    "message": "MCP server is running",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return json.dumps({
-            "success": False,
-            "error": f"Health check failed: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Health check failed: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
 
 # Session management endpoint
@@ -402,21 +428,27 @@ async def session_info(ctx: Context) -> str:
         # Add server uptime
         context = getattr(ctx.request_context, "lifespan_context", None)
         if context and hasattr(context, "startup_time"):
-            session_info_data["server_uptime_seconds"] = time.time() - context.startup_time
+            session_info_data["server_uptime_seconds"] = (
+                time.time() - context.startup_time
+            )
 
-        return json.dumps({
-            "success": True,
-            "session_management": session_info_data,
-            "timestamp": datetime.now().isoformat(),
-        })
+        return json.dumps(
+            {
+                "success": True,
+                "session_management": session_info_data,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
     except Exception as e:
         logger.error(f"Session info failed: {e}")
-        return json.dumps({
-            "success": False,
-            "error": f"Failed to get session info: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"Failed to get session info: {str(e)}",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
 
 # Import and register modules
@@ -557,12 +589,16 @@ def main():
         logger.info(f"   URL: http://{server_host}:{server_port}/mcp")
 
         mcp_logger.info("🔥 Logfire initialized for MCP server")
-        mcp_logger.info(f"🌟 Starting MCP server - host={server_host}, port={server_port}")
+        mcp_logger.info(
+            f"🌟 Starting MCP server - host={server_host}, port={server_port}"
+        )
 
         mcp.run(transport="streamable-http")
 
     except Exception as e:
-        mcp_logger.error(f"💥 Fatal error in main - error={str(e)}, error_type={type(e).__name__}")
+        mcp_logger.error(
+            f"💥 Fatal error in main - error={str(e)}, error_type={type(e).__name__}"
+        )
         logger.error(f"💥 Fatal error in main: {e}")
         logger.error(traceback.format_exc())
         raise

@@ -1,0 +1,941 @@
+# bd - Beads Issue Tracker 🔗
+
+**Give your coding agent a memory upgrade**
+
+> **⚠️ Alpha Status**: This project is in active development. The core features work well, but expect API changes before 1.0. Use for development/internal projects first.
+
+Beads is a lightweight memory system for coding agents, using a graph-based issue tracker. Four kinds of dependencies work to chain your issues together like beads, making them easy for agents to follow for long distances, and reliably perform complex task streams in the right order.
+
+Drop Beads into any project where you're using a coding agent, and you'll enjoy an instant upgrade in organization, focus, and your agent's ability to handle long-horizon tasks over multiple compaction sessions. Your agents will use issue tracking with proper epics, rather than creating a swamp of rotten half-implemented markdown plans.
+
+Instant start:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/install.sh | bash
+```
+
+Then tell your coding agent to start using the `bd` tool instead of markdown for all new work, somewhere in your `AGENTS.md` or `CLAUDE.md`. That's all there is to it!
+
+You don't use Beads directly as a human. Your coding agent will file and manage issues on your behalf. They'll file things they notice automatically, and you can ask them at any time to add or update issues for you.
+
+Beads gives agents unprecedented long-term planning capability, solving their amnesia when dealing with complex nested plans. They can trivially query the ready work, orient themselves, and land on their feet as soon as they boot up.
+
+Agents using Beads will no longer silently pass over problems they notice due to lack of context space -- instead, they will automatically file issues for newly-discovered work as they go. No more lost work, ever.
+
+Beads issues are backed by git, but through a clever design it manages to act like a managed, centrally hosted SQL database shared by all of the agents working on a project (repo), even across machines.
+
+Beads even improves work auditability. The issue tracker has a sophisticated audit trail, which agents can use to reconstruct complex operations that may have spanned multiple sessions.
+
+Agents report that they enjoy working with Beads, and they will use it spontaneously for both recording new work and reasoning about your project in novel ways. Whether you are a human or an AI, Beads lets you have more fun and less stress with agentic coding.
+
+![AI Agent using Beads](https://raw.githubusercontent.com/steveyegge/beads/main/.github/images/agent-using-beads.jpg)
+
+## Features
+
+- ✨ **Zero setup** - `bd init` creates project-local database (and your agent will do it)
+- 🔗 **Dependency tracking** - Four dependency types (blocks, related, parent-child, discovered-from)
+- 📋 **Ready work detection** - Automatically finds issues with no open blockers
+- 🤖 **Agent-friendly** - `--json` flags for programmatic integration
+- 📦 **Git-versioned** - JSONL records stored in git, synced across machines
+- 🌍 **Distributed by design** - Agents on multiple machines share one logical database via git
+- 🏗️ **Extensible** - Add your own tables to the SQLite database
+- 🔍 **Multi-project isolation** - Each project gets its own database, auto-discovered by directory
+- 🌲 **Dependency trees** - Visualize full dependency graphs
+- 🎨 **Beautiful CLI** - Colored output for humans, JSON for bots
+- 💾 **Full audit trail** - Every change is logged
+
+## Installation
+
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/install.sh | bash
+```
+
+The installer will:
+- Detect your platform (macOS/Linux, amd64/arm64)
+- Install via `go install` if Go is available
+- Fall back to building from source if needed
+- Guide you through PATH setup if necessary
+
+### Manual Install
+
+```bash
+# Using go install (requires Go 1.21+)
+go install github.com/steveyegge/beads/cmd/bd@latest
+
+# Or build from source
+git clone https://github.com/steveyegge/beads
+cd beads
+go build -o bd ./cmd/bd
+sudo mv bd /usr/local/bin/  # or anywhere in your PATH
+```
+
+## Quick Start
+
+### For Humans
+
+Beads is designed for **AI coding agents** to use on your behalf. As a human, you typically just:
+
+```bash
+# 1. Initialize beads in your project
+bd init
+
+# 2. Add a note to your agent instructions (CLAUDE.md, AGENTS.md, etc.)
+echo "We track work in Beads instead of Markdown. Run \`bd quickstart\` to see how." >> CLAUDE.md
+
+# 3. Let agents handle the rest!
+```
+
+Most tasks will be created and managed by agents during conversations. You can check on things with:
+
+```bash
+bd list                  # See what's being tracked
+bd show <issue-id>       # Review a specific issue
+bd ready                 # See what's ready to work on
+bd dep tree <issue-id>   # Visualize dependencies
+```
+
+### For AI Agents
+
+Run the interactive guide to learn the full workflow:
+
+```bash
+bd quickstart
+```
+
+Quick reference for agent workflows:
+
+```bash
+# Find ready work
+bd ready --json | jq '.[0]'
+
+# Create issues during work
+bd create "Discovered bug" -t bug -p 0 --json
+
+# Link discovered work back to parent
+bd dep add <new-id> <parent-id> --type discovered-from
+
+# Update status
+bd update <issue-id> --status in_progress --json
+
+# Complete work
+bd close <issue-id> --reason "Implemented" --json
+```
+
+## The Magic: Distributed Database via Git
+
+Here's the crazy part: **bd acts like a centralized database, but it's actually distributed via git.**
+
+When you install bd on any machine with your project repo, you get:
+- ✅ Full query capabilities (dependencies, ready work, etc.)
+- ✅ Fast local operations (<100ms via SQLite)
+- ✅ Shared state across all machines (via git)
+- ✅ No server, no daemon, no configuration
+- ✅ AI-assisted merge conflict resolution
+
+**How it works:**
+1. Each machine has a local SQLite cache (`.beads/*.db`) - gitignored
+2. Source of truth is JSONL (`.beads/issues.jsonl`) - committed to git
+3. `bd export` syncs SQLite → JSONL before commits
+4. `bd import` syncs JSONL → SQLite after pulls
+5. Git handles distribution; AI handles merge conflicts
+
+**The result:** Agents on your laptop, your desktop, and your coworker's machine all query and update what *feels* like a single shared database, but it's really just git doing what git does best - syncing text files across machines.
+
+No PostgreSQL instance. No MySQL server. No hosted service. Just install bd, clone the repo, and you're connected to the "database."
+
+## Usage
+
+### Creating Issues
+
+```bash
+bd create "Fix bug" -d "Description" -p 1 -t bug
+bd create "Add feature" --description "Long description" --priority 2 --type feature
+bd create "Task" -l "backend,urgent" --assignee alice
+
+# Get JSON output for programmatic use
+bd create "Fix bug" -d "Description" --json
+```
+
+Options:
+- `-d, --description` - Issue description
+- `-p, --priority` - Priority (0-4, 0=highest)
+- `-t, --type` - Type (bug|feature|task|epic|chore)
+- `-a, --assignee` - Assign to user
+- `-l, --labels` - Comma-separated labels
+- `--json` - Output in JSON format
+
+### Viewing Issues
+
+```bash
+bd show bd-1              # Show full details
+bd list                   # List all issues
+bd list --status open     # Filter by status
+bd list --priority 1      # Filter by priority
+bd list --assignee alice  # Filter by assignee
+
+# JSON output for agents
+bd list --json
+bd show bd-1 --json
+```
+
+### Updating Issues
+
+```bash
+bd update bd-1 --status in_progress
+bd update bd-1 --priority 2
+bd update bd-1 --assignee bob
+bd close bd-1 --reason "Completed"
+bd close bd-1 bd-2 bd-3   # Close multiple
+
+# JSON output
+bd update bd-1 --status in_progress --json
+bd close bd-1 --json
+```
+
+### Dependencies
+
+```bash
+# Add dependency (bd-2 depends on bd-1)
+bd dep add bd-2 bd-1
+bd dep add bd-3 bd-1 --type blocks
+
+# Remove dependency
+bd dep remove bd-2 bd-1
+
+# Show dependency tree
+bd dep tree bd-2
+
+# Detect cycles
+bd dep cycles
+```
+
+### Finding Work
+
+```bash
+# Show ready work (no blockers)
+bd ready
+bd ready --limit 20
+bd ready --priority 1
+bd ready --assignee alice
+
+# Show blocked issues
+bd blocked
+
+# Statistics
+bd stats
+
+# JSON output for agents
+bd ready --json
+```
+
+## Database Discovery
+
+bd automatically discovers your database in this order:
+
+1. `--db` flag: `bd --db /path/to/db.db create "Issue"`
+2. `$BEADS_DB` environment variable: `export BEADS_DB=/path/to/db.db`
+3. `.beads/*.db` in current directory or ancestors (walks up like git)
+4. `~/.beads/default.db` as fallback
+
+This means you can:
+- Initialize per-project databases with `bd init`
+- Work from any subdirectory (bd finds the database automatically)
+- Override for testing or multiple projects
+
+Example:
+
+```bash
+# Initialize in project root
+cd ~/myproject
+bd init --prefix myapp
+
+# Work from any subdirectory
+cd ~/myproject/src/components
+bd create "Fix navbar bug"  # Uses ~/myproject/.beads/myapp.db
+
+# Override for a different project
+bd --db ~/otherproject/.beads/other.db list
+```
+
+## Dependency Model
+
+Beads has four types of dependencies:
+
+1. **blocks** - Hard blocker (affects ready work calculation)
+2. **related** - Soft relationship (just for context)
+3. **parent-child** - Epic/subtask hierarchy
+4. **discovered-from** - Tracks issues discovered while working on another issue
+
+Only `blocks` dependencies affect the ready work queue.
+
+### Dependency Type Usage
+
+- **blocks**: Use when issue X cannot start until issue Y is completed
+  ```bash
+  bd dep add bd-5 bd-3 --type blocks  # bd-5 blocked by bd-3
+  ```
+
+- **related**: Use for issues that are connected but don't block each other
+  ```bash
+  bd dep add bd-10 bd-8 --type related  # bd-10 related to bd-8
+  ```
+
+- **parent-child**: Use for epic/subtask hierarchies
+  ```bash
+  bd dep add bd-15 bd-12 --type parent-child  # bd-15 is child of epic bd-12
+  ```
+
+- **discovered-from**: Use when you discover new work while working on an issue
+  ```bash
+  # While working on bd-20, you discover a bug
+  bd create "Fix edge case bug" -t bug -p 1
+  bd dep add bd-21 bd-20 --type discovered-from  # bd-21 discovered from bd-20
+  ```
+
+The `discovered-from` type is particularly useful for AI-supervised workflows, where the AI can automatically create issues for discovered work and link them back to the parent task.
+
+## AI Agent Integration
+
+bd is designed to work seamlessly with AI coding agents:
+
+```bash
+# Agent discovers ready work
+WORK=$(bd ready --limit 1 --json)
+ISSUE_ID=$(echo $WORK | jq -r '.[0].id')
+
+# Agent claims and starts work
+bd update $ISSUE_ID --status in_progress --json
+
+# Agent discovers new work while executing
+bd create "Fix bug found in testing" -t bug -p 0 --json > new_issue.json
+NEW_ID=$(cat new_issue.json | jq -r '.id')
+bd dep add $NEW_ID $ISSUE_ID --type discovered-from
+
+# Agent completes work
+bd close $ISSUE_ID --reason "Implemented and tested" --json
+```
+
+The `--json` flag on every command makes bd perfect for programmatic workflows.
+
+## Ready Work Algorithm
+
+An issue is "ready" if:
+- Status is `open`
+- It has NO open `blocks` dependencies
+- All blockers are either closed or non-existent
+
+Example:
+```
+bd-1 [open] ← blocks ← bd-2 [open] ← blocks ← bd-3 [open]
+```
+
+Ready work: `[bd-1]`
+Blocked: `[bd-2, bd-3]`
+
+## Issue Lifecycle
+
+```
+open → in_progress → closed
+       ↓
+     blocked (manually set, or has open blockers)
+```
+
+## Architecture
+
+```
+beads/
+├── cmd/bd/              # CLI entry point
+│   ├── main.go          # Core commands (create, list, show, update, close)
+│   ├── init.go          # Project initialization
+│   ├── quickstart.go    # Interactive guide
+│   └── ...
+├── internal/
+│   ├── types/           # Core data types (Issue, Dependency, etc.)
+│   └── storage/         # Storage interface
+│       └── sqlite/      # SQLite implementation
+└── EXTENDING.md         # Database extension guide
+```
+
+## Extending bd
+
+Applications can extend bd's SQLite database with their own tables. See [EXTENDING.md](EXTENDING.md) for the full guide.
+
+Quick example:
+
+```sql
+-- Add your own tables to .beads/myapp.db
+CREATE TABLE myapp_executions (
+    id INTEGER PRIMARY KEY,
+    issue_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at DATETIME,
+    FOREIGN KEY (issue_id) REFERENCES issues(id)
+);
+
+-- Query across layers
+SELECT i.*, e.status as execution_status
+FROM issues i
+LEFT JOIN myapp_executions e ON i.id = e.issue_id
+WHERE i.status = 'in_progress';
+```
+
+This pattern enables powerful integrations while keeping bd simple and focused.
+
+## Comparison to Other Tools
+
+| Feature | bd | Taskwarrior | GitHub Issues | Jira | Linear |
+|---------|-------|-------------|---------------|------|--------|
+| Zero setup | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Dependency tracking | ✅ | ✅ | ⚠️ | ✅ | ✅ |
+| Ready work detection | ✅ | ⚠️ | ❌ | ❌ | ❌ |
+| Agent-friendly (JSON) | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
+| Distributed via git | ✅ | ⚠️ | ❌ | ❌ | ❌ |
+| Works offline | ✅ | ✅ | ❌ | ❌ | ❌ |
+| AI-resolvable conflicts | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Extensible database | ✅ | ❌ | ❌ | ❌ | ❌ |
+| No server required | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Built for AI agents | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+**vs. Taskwarrior**: Taskwarrior is great for personal task management, but bd is designed specifically for AI agents. bd has explicit dependency types (`discovered-from`), JSON-first API design, and JSONL storage optimized for git merging. Taskwarrior's sync server requires setup; bd uses git automatically.
+
+## Why bd?
+
+**bd is designed for AI coding agents, not humans.**
+
+Traditional issue trackers (Jira, GitHub Issues, Linear) assume humans are the primary users. Humans click through web UIs, drag cards on boards, and manually update status.
+
+bd assumes **AI agents are the primary users**, with humans supervising:
+
+- **Agents discover work** - `bd ready --json` gives agents unblocked tasks to execute
+- **Dependencies prevent wasted work** - Agents don't duplicate effort or work on blocked tasks
+- **Discovery during execution** - Agents create issues for work they discover while executing, linked with `discovered-from`
+- **Agents lose focus** - Long-running conversations can forget tasks; bd remembers everything
+- **Humans supervise** - Check on progress with `bd list` and `bd dep tree`, but don't micromanage
+
+In human-managed workflows, issues are planning artifacts. In agent-managed workflows, **issues are memory** - preventing agents from forgetting tasks during long coding sessions.
+
+Traditional issue trackers were built for human project managers. bd is built for autonomous agents.
+
+## Architecture: JSONL + SQLite
+
+bd uses a dual-storage approach:
+
+- **JSONL files** (`.beads/issues.jsonl`) - Source of truth, committed to git
+- **SQLite database** (`.beads/*.db`) - Ephemeral cache for fast queries, gitignored
+
+This gives you:
+- ✅ **Git-friendly storage** - Text diffs, AI-resolvable conflicts
+- ✅ **Fast queries** - SQLite indexes for dependency graphs
+- ✅ **Simple workflow** - Export before commit, import after pull
+- ✅ **No daemon required** - In-process SQLite, ~10-100ms per command
+
+When you run `bd create`, it writes to SQLite. Before committing to git, run `bd export` to sync to JSONL. After pulling, run `bd import` to sync back to SQLite. Git hooks can automate this.
+
+## Export/Import (JSONL Format)
+
+bd can export and import issues as JSON Lines (one JSON object per line). This is perfect for git workflows and data portability.
+
+### Export Issues
+
+```bash
+# Export all issues to stdout
+bd export --format=jsonl
+
+# Export to file
+bd export --format=jsonl -o issues.jsonl
+
+# Export filtered issues
+bd export --format=jsonl --status=open -o open-issues.jsonl
+```
+
+Issues are exported sorted by ID for consistent git diffs.
+
+### Import Issues
+
+```bash
+# Import from stdin
+cat issues.jsonl | bd import
+
+# Import from file
+bd import -i issues.jsonl
+
+# Skip existing issues (only create new ones)
+bd import -i issues.jsonl --skip-existing
+```
+
+Import behavior:
+- Existing issues (same ID) are **updated** with new values
+- New issues are **created**
+- All imports are atomic (all or nothing)
+
+### Handling ID Collisions
+
+When importing issues, bd detects three types of situations:
+1. **Exact matches** - Same ID, same content (idempotent, no action needed)
+2. **New issues** - ID doesn't exist in database yet
+3. **Collisions** - Same ID but different content (requires resolution)
+
+**Collision detection:**
+```bash
+# Preview collisions without making changes
+bd import -i issues.jsonl --dry-run
+
+# Output shows:
+# === Collision Detection Report ===
+# Exact matches (idempotent): 5
+# New issues: 3
+# COLLISIONS DETECTED: 2
+#
+# Colliding issues:
+#   bd-10: Fix authentication bug
+#     Conflicting fields: [title, priority, status]
+#   bd-15: Add dashboard widget
+#     Conflicting fields: [description, assignee]
+```
+
+**Resolution strategies:**
+
+**Option 1: Automatic remapping (recommended for branch merges)**
+```bash
+# Automatically resolve collisions by renumbering incoming issues
+bd import -i issues.jsonl --resolve-collisions
+
+# bd will:
+# 1. Keep existing issues unchanged
+# 2. Assign new IDs to colliding incoming issues (bd-25, bd-26, etc.)
+# 3. Update ALL text references and dependencies to use new IDs
+# 4. Report the remapping:
+#
+# === Remapping Report ===
+# Issues remapped: 2
+#
+# Remappings (sorted by reference count):
+#   bd-10 → bd-25 (refs: 3)
+#   bd-15 → bd-26 (refs: 7)
+#
+# All text and dependency references have been updated.
+```
+
+**Option 2: Manual resolution**
+```bash
+# 1. Check for collisions first
+bd import -i branch-issues.jsonl --dry-run
+
+# 2. Edit JSONL to resolve manually:
+#    - Rename IDs in the JSONL file
+#    - Or merge content into existing issues
+#    - Or skip colliding issues
+
+# 3. Import after manual fixes
+bd import -i branch-issues.jsonl
+```
+
+**The collision resolution algorithm:**
+
+When using `--resolve-collisions`, bd intelligently remaps colliding issues to minimize updates:
+
+1. **Detects collisions** - Compares ID and content (title, description, status, priority, etc.)
+2. **Scores references** - Counts how many times each ID is referenced in:
+   - Text fields (description, design, notes, acceptance criteria)
+   - Dependency records (both as source and target)
+3. **Renumbers by score** - Issues with fewer references are remapped first
+4. **Updates all references** - Uses word-boundary regex to replace old IDs:
+   - Text fields: "See bd-10 for details" → "See bd-25 for details"
+   - Dependencies: bd-5 → bd-10 becomes bd-5 → bd-25
+   - Handles edge cases: Distinguishes bd-10 from bd-100, bd-1000, etc.
+
+**Branch merge workflow:**
+
+This is particularly useful when merging branches where both sides created issues with the same IDs:
+
+```bash
+# On main branch: bd-1 through bd-20 exist
+git checkout main
+bd export -o .beads/issues.jsonl
+
+# On feature branch: Also has bd-1 through bd-20 (diverged)
+git checkout feature-branch
+bd export -o .beads/issues.jsonl
+
+# Merge branches
+git checkout main
+git merge feature-branch
+# Git shows conflict in .beads/issues.jsonl
+
+# Resolve the conflict in Git (keep both sides for different issues, etc.)
+# Then import with collision resolution:
+bd import -i .beads/issues.jsonl --resolve-collisions
+
+# Result: Issues from feature-branch get new IDs (bd-21+)
+# All cross-references are automatically updated
+```
+
+**Important notes:**
+- Collisions are **safe by default** - import fails unless you use `--resolve-collisions`
+- Use `--dry-run` to preview changes before applying
+- The algorithm preserves the existing database (existing issues are never renumbered)
+- All text mentions and dependency links are updated automatically
+- Word-boundary matching prevents false replacements (bd-10 won't match bd-100)
+
+### JSONL Format
+
+Each line is a complete JSON issue object:
+
+```jsonl
+{"id":"bd-1","title":"Fix login bug","status":"open","priority":1,"issue_type":"bug","created_at":"2025-10-12T10:00:00Z","updated_at":"2025-10-12T10:00:00Z"}
+{"id":"bd-2","title":"Add dark mode","status":"in_progress","priority":2,"issue_type":"feature","created_at":"2025-10-12T11:00:00Z","updated_at":"2025-10-12T12:00:00Z"}
+```
+
+## Git Workflow
+
+**Recommended approach**: Use JSONL export as source of truth, SQLite database as ephemeral cache (not committed to git).
+
+### Setup
+
+Add to `.gitignore`:
+```
+.beads/*.db
+.beads/*.db-*
+```
+
+Add to git:
+```
+.beads/issues.jsonl
+```
+
+### Workflow
+
+```bash
+# Export before committing
+bd export -o .beads/issues.jsonl
+git add .beads/issues.jsonl
+git commit -m "Update issues"
+git push
+
+# Import after pulling
+git pull
+bd import -i .beads/issues.jsonl
+```
+
+### Automated with Git Hooks
+
+Create `.git/hooks/pre-commit`:
+```bash
+#!/bin/bash
+bd export -o .beads/issues.jsonl
+git add .beads/issues.jsonl
+```
+
+Create `.git/hooks/post-merge`:
+```bash
+#!/bin/bash
+bd import -i .beads/issues.jsonl
+```
+
+Make hooks executable:
+```bash
+chmod +x .git/hooks/pre-commit .git/hooks/post-merge
+```
+
+### Why JSONL?
+
+- ✅ **Git-friendly**: One line per issue = clean diffs
+- ✅ **Mergeable**: Concurrent appends rarely conflict
+- ✅ **Human-readable**: Easy to review changes
+- ✅ **Scriptable**: Use `jq`, `grep`, or any text tools
+- ✅ **Portable**: Export/import between databases
+
+### Handling Conflicts
+
+When two developers create new issues:
+```diff
+ {"id":"bd-1","title":"First issue",...}
+ {"id":"bd-2","title":"Second issue",...}
++{"id":"bd-3","title":"From branch A",...}
++{"id":"bd-4","title":"From branch B",...}
+```
+
+Git may show a conflict, but resolution is simple: **keep both lines** (both changes are compatible).
+
+See **[TEXT_FORMATS.md](TEXT_FORMATS.md)** for detailed analysis of JSONL merge strategies and conflict resolution.
+
+## Examples
+
+Check out the **[examples/](examples/)** directory for:
+- **[Python agent](examples/python-agent/)** - Full agent implementation in Python
+- **[Bash agent](examples/bash-agent/)** - Shell script agent example
+- **[Git hooks](examples/git-hooks/)** - Automatic export/import on git operations
+- **[Branch merge workflow](examples/branch-merge/)** - Handle ID collisions when merging branches
+- **[Claude Desktop MCP](examples/claude-desktop-mcp/)** - MCP server integration (coming soon)
+
+## FAQ
+
+### Why not just use GitHub Issues?
+
+GitHub Issues requires internet, has API rate limits, and isn't designed for agents. bd works offline, has no limits, and gives you `bd ready --json` to instantly find unblocked work. Plus, bd's distributed database means agents on multiple machines share state via git—no API calls needed.
+
+### How is this different from Taskwarrior?
+
+Taskwarrior is excellent for personal task management, but bd is built for AI agents:
+- **Explicit agent semantics**: `discovered-from` dependency type, `bd ready` for queue management
+- **JSON-first design**: Every command has `--json` output
+- **Git-native sync**: No sync server setup required
+- **Merge-friendly JSONL**: One issue per line, AI-resolvable conflicts
+- **Extensible SQLite**: Add your own tables without forking
+
+### Can I use bd without AI agents?
+
+Absolutely! bd is a great CLI issue tracker for humans too. The `bd ready` command is useful for anyone managing dependencies. Think of it as "Taskwarrior meets git."
+
+### What happens if two agents work on the same issue?
+
+The last agent to export/commit wins. This is the same as any git-based workflow. To prevent conflicts:
+- Have agents claim work with `bd update <id> --status in_progress`
+- Query by assignee: `bd ready --assignee agent-name`
+- Review git diffs before merging
+
+For true multi-agent coordination, you'd need additional tooling (like locks or a coordination server). bd handles the simpler case: multiple humans/agents working on different tasks, syncing via git.
+
+### Do I need to run export/import manually?
+
+No! Install the git hooks from [examples/git-hooks/](examples/git-hooks/):
+```bash
+cd examples/git-hooks && ./install.sh
+```
+
+The hooks automatically export before commits and import after pulls/merges/checkouts. Set it up once, forget about it.
+
+### Can I track issues for multiple projects?
+
+**Yes! Each project is completely isolated.** bd uses project-local databases:
+```bash
+cd ~/project1 && bd init --prefix proj1
+cd ~/project2 && bd init --prefix proj2
+```
+
+Each project gets its own `.beads/` directory with its own database and JSONL file. bd auto-discovers the correct database based on your current directory (walks up like git).
+
+**Multi-project scenarios work seamlessly:**
+- Multiple agents working on different projects simultaneously → No conflicts
+- Same machine, different repos → Each finds its own `.beads/*.db` automatically
+- Agents in subdirectories → bd walks up to find the project root (like git)
+
+**Limitation:** Issues cannot reference issues in other projects. Each database is isolated by design. If you need cross-project tracking, initialize bd in a parent directory that contains both projects.
+
+**Example:** Multiple agents, multiple projects, same machine:
+```bash
+# Agent 1 working on web app
+cd ~/work/webapp && bd ready --json    # Uses ~/work/webapp/.beads/webapp.db
+
+# Agent 2 working on API
+cd ~/work/api && bd ready --json       # Uses ~/work/api/.beads/api.db
+
+# No conflicts! Completely isolated databases.
+```
+
+### How do I migrate from GitHub Issues / Jira / Linear?
+
+We don't have automated migration tools yet, but you can:
+1. Export issues from your current tracker (usually CSV or JSON)
+2. Write a simple script to convert to bd's JSONL format
+3. Import with `bd import -i issues.jsonl`
+
+See [examples/](examples/) for scripting patterns. Contributions welcome!
+
+### Is this production-ready?
+
+**Current status: Alpha (v0.9.0)**
+
+bd is in active development and being dogfooded on real projects. The core functionality (create, update, dependencies, ready work, collision resolution) is stable and well-tested. However:
+
+- ⚠️ **Alpha software** - No 1.0 release yet
+- ⚠️ **API may change** - Command flags and JSONL format may evolve before 1.0
+- ✅ **Safe for development** - Use for development/internal projects
+- ✅ **Data is portable** - JSONL format is human-readable and easy to migrate
+- 📈 **Rapid iteration** - Expect frequent updates and improvements
+
+**When to use bd:**
+- ✅ AI-assisted development workflows
+- ✅ Internal team projects
+- ✅ Personal productivity with dependency tracking
+- ✅ Experimenting with agent-first tools
+
+**When to wait:**
+- ❌ Mission-critical production systems (wait for 1.0)
+- ❌ Large enterprise deployments (wait for stability guarantees)
+- ❌ Long-term archival (though JSONL makes migration easy)
+
+Follow the repo for updates and the path to 1.0!
+
+### How does bd handle scale?
+
+bd uses SQLite, which handles millions of rows efficiently. For a typical project with thousands of issues:
+- Commands complete in <100ms
+- Full-text search is instant
+- Dependency graphs traverse quickly
+- JSONL files stay small (one line per issue)
+
+For extremely large projects (100k+ issues), you might want to filter exports or use multiple databases per component.
+
+### Can I use bd for non-code projects?
+
+Sure! bd is just an issue tracker. Use it for:
+- Writing projects (chapters as issues, dependencies as outlines)
+- Research projects (papers, experiments, dependencies)
+- Home projects (renovations with blocking tasks)
+- Any workflow with dependencies
+
+The agent-friendly design works for any AI-assisted workflow.
+
+## Troubleshooting
+
+### `bd: command not found`
+
+bd is not in your PATH. Either:
+```bash
+# Check if installed
+go list -f {{.Target}} github.com/steveyegge/beads/cmd/bd
+
+# Add Go bin to PATH
+export PATH="$PATH:$(go env GOPATH)/bin"
+
+# Or reinstall
+go install github.com/steveyegge/beads/cmd/bd@latest
+```
+
+### `database is locked`
+
+Another bd process is accessing the database, or SQLite didn't close properly. Solutions:
+```bash
+# Find and kill hanging processes
+ps aux | grep bd
+kill <pid>
+
+# Remove lock files (safe if no bd processes running)
+rm .beads/*.db-journal .beads/*.db-wal .beads/*.db-shm
+```
+
+### `failed to import: issue already exists`
+
+You're trying to import issues that conflict with existing ones. Options:
+```bash
+# Skip existing issues (only import new ones)
+bd import -i issues.jsonl --skip-existing
+
+# Or clear database and re-import everything
+rm .beads/*.db
+bd import -i .beads/issues.jsonl
+```
+
+### Git merge conflict in `issues.jsonl`
+
+When both sides add issues, you'll get conflicts. Resolution:
+1. Open `.beads/issues.jsonl`
+2. Look for `<<<<<<< HEAD` markers
+3. Most conflicts can be resolved by **keeping both sides**
+4. Each line is independent unless IDs conflict
+5. For same-ID conflicts, keep the newest (check `updated_at`)
+
+Example resolution:
+```bash
+# After resolving conflicts manually
+git add .beads/issues.jsonl
+git commit
+bd import -i .beads/issues.jsonl  # Sync to SQLite
+```
+
+See [TEXT_FORMATS.md](TEXT_FORMATS.md) for detailed merge strategies.
+
+### `bd ready` shows nothing but I have open issues
+
+Those issues probably have open blockers. Check:
+```bash
+# See blocked issues
+bd blocked
+
+# Show dependency tree
+bd dep tree <issue-id>
+
+# Remove blocking dependency if needed
+bd dep remove <from-id> <to-id>
+```
+
+Remember: Only `blocks` dependencies affect ready work.
+
+### Permission denied on git hooks
+
+Git hooks need execute permissions:
+```bash
+chmod +x .git/hooks/pre-commit
+chmod +x .git/hooks/post-merge
+chmod +x .git/hooks/post-checkout
+```
+
+Or use the installer: `cd examples/git-hooks && ./install.sh`
+
+### `bd init` fails with "directory not empty"
+
+`.beads/` already exists. Options:
+```bash
+# Use existing database
+bd list  # Should work if already initialized
+
+# Or remove and reinitialize (DESTROYS DATA!)
+rm -rf .beads/
+bd init
+```
+
+### Export/import is slow
+
+For large databases (10k+ issues):
+```bash
+# Export only open issues
+bd export --format=jsonl --status=open -o .beads/issues.jsonl
+
+# Or filter by priority
+bd export --format=jsonl --priority=0 --priority=1 -o critical.jsonl
+```
+
+Consider splitting large projects into multiple databases.
+
+### Agent creates duplicate issues
+
+Agents may not realize an issue already exists. Prevention strategies:
+- Have agents search first: `bd list --json | grep "title"`
+- Use labels to mark auto-created issues: `bd create "..." -l auto-generated`
+- Review and deduplicate periodically: `bd list | sort`
+
+True deduplication logic would require fuzzy matching - contributions welcome!
+
+## Documentation
+
+- **[README.md](README.md)** - You are here! Complete guide
+- **[TEXT_FORMATS.md](TEXT_FORMATS.md)** - JSONL format analysis and merge strategies
+- **[GIT_WORKFLOW.md](GIT_WORKFLOW.md)** - Historical analysis of binary vs text approaches
+- **[EXTENDING.md](EXTENDING.md)** - Database extension patterns
+- Run `bd quickstart` for interactive tutorial
+
+## Development
+
+```bash
+# Run tests
+go test ./...
+
+# Build
+go build -o bd ./cmd/bd
+
+# Run
+./bd create "Test issue"
+```
+
+## License
+
+MIT
+
+## Credits
+
+Built with ❤️ by developers who love tracking dependencies and finding ready work.
+
+Inspired by the need for a simpler, dependency-aware issue tracker.
